@@ -1,5 +1,9 @@
 name: FeeEngine CI
 
+# Shift-left: every push to main and every pull request targeting main runs the full suite
+# before the change can be merged. This workflow does not, by itself, prove that direct
+# pushes are blocked - that requires a branch protection rule on the repository.
+
 on:
   push:
     branches: [ main ]
@@ -9,7 +13,7 @@ on:
 
 jobs:
   test:
-    name: Automated tests and coverage
+    name: Tests, coverage and fault detection
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +28,26 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest pytest-cov
 
-      # White-box unit tests and black-box boundary tests run on every push (shift-left).
+      # White-box unit tests, black-box boundary tests, the legacy-vs-refactored regression
+      # harness and the adapter integration suite all run here.
       - name: Run the test suite
         run: pytest -v
 
-      # Coverage is reported as a diagnostic, not enforced as a target.
-      - name: Coverage report
-        run: pytest --cov=feeengine --cov-report=term-missing
+      # Statement AND branch coverage. Branch coverage is the measurement that shows both
+      # outcomes of a decision were taken; statement coverage cannot show that.
+      - name: Coverage report (statement and branch)
+        run: pytest --cov=feeengine --cov-branch --cov-report=term-missing
+
+      # The same measurements again from the standard-library tools, so the figures quoted
+      # in the report can be reproduced by a marker with no third-party packages installed.
+      - name: Reproduce coverage with standard-library tools only
+        run: |
+          python tools/coverage_report.py
+          python tools/branch_coverage.py
+
+      # Advisory, not a gate. Mutation analysis answers whether a fault would be detected,
+      # which coverage does not; it is reported for review rather than enforced, because a
+      # score target would reward writing tests for equivalent mutants.
+      - name: Mutation analysis (advisory)
+        continue-on-error: true
+        run: python tools/mutation_test.py

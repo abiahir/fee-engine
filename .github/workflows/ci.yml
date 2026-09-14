@@ -1,0 +1,33 @@
+name: FeeEngine CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Automated tests and coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      # White-box unit tests and black-box boundary tests run on every push (shift-left).
+      - name: Run the test suite
+        run: pytest -v
+
+      # Coverage is reported as a diagnostic, not enforced as a target.
+      - name: Coverage report
+        run: pytest --cov=feeengine --cov-report=term-missing
